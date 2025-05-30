@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slideshow Gallery</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        :fullscreen .fullscreen-hide {
+            display: none;
+        }
+        :-webkit-full-screen .fullscreen-hide {
+            display: none;
+        }
+        :-moz-full-screen .fullscreen-hide {
+            display: none;
+        }
+        :-ms-fullscreen .fullscreen-hide {
+            display: none;
+        }
+        .fullscreen-btn i {
+            transition: transform 0.3s ease;
+        }
+        .fullscreen-btn.active i {
+            transform: rotate(180deg);
+        }
+        .gallery-slide-img {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            margin: auto;
+            background: #000;
+            display: block;
+            border: none !important;
+            box-shadow: none !important;
+            /* Remove selection highlight on double click */
+            user-select: none;
+        }
+        .gallery-slide-img.landscape {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            object-fit: cover !important;
+        }
+        .gallery-slide-img.portrait {
+            height: 100vh !important;
+            width: auto !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            object-fit: contain !important;
+            left: 0; right: 0; margin-left: auto; margin-right: auto;
+        }
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 600px) {
+            .gallery-slide-img.landscape, .gallery-slide-img.portrait {
+                width: 100vw !important;
+                height: 100vh !important;
+                max-width: 100vw !important;
+                max-height: 100vh !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden">
+    <!-- Control Buttons -->
+    <div class="absolute top-4 left-4 z-30 flex space-x-2">
+        <a href="index.html" class="bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div class="bg-black bg-opacity-50 rounded-lg p-2 flex items-center">
+            <span class="text-sm mr-2">Speed:</span>
+            <select class="bg-gray-800 text-white text-sm rounded px-2 py-1" id="speedControl">
+                <option value="3000">3s</option>
+                <option value="5000" selected>5s</option>
+                <option value="7000">7s</option>
+                <option value="10000">10s</option>
+            </select>
+        </div>
+    </div>
+    <div class="absolute top-4 right-4 z-30 flex space-x-2">
+        <!-- Play/Pause Button -->
+        <button class="bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition" id="playPauseBtn">
+            <i class="fas fa-pause"></i>
+        </button>
+        <!-- Fullscreen Button -->
+        <button class="bg-black bg-opacity-50 rounded-full p-3 hover:bg-opacity-70 transition" id="fullscreenBtn">
+            <i class="fas fa-expand"></i>
+        </button>
+    </div>
+    <!-- Main Gallery View -->
+    <div class="relative flex-1 w-full overflow-hidden" id="galleryContainer">
+        <div class="absolute inset-0 flex items-center justify-center bg-black" id="slideContainer">
+            <!-- Slides will be inserted here -->
+        </div>
+        <div id="emptyGalleryPrompt" class="absolute inset-0 flex items-center justify-center bg-black z-10 flex-col">
+            <div class="text-center p-6 rounded-lg">
+                <i class="fas fa-images text-5xl mb-4 text-gray-300"></i>
+                <p class="text-xl font-light mb-2">No photos found</p>
+                <p class="text-sm text-gray-400 mb-4">Add photos in the manager to start slideshow</p>
+                <a href="index.html" class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                    <i class="fas fa-cog mr-2"></i> Go to Manager
+                </a>
+            </div>
+        </div>
+        <!-- Navigation Arrows -->
+        <button class="absolute h-screen opacity-10 hover:opacity-100 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-3 z-20 transition" id="prevBtn">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        <button class="absolute h-screen opacity-10 hover:opacity-100 right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-3 z-20 hover:bg-opacity-70 transition" id="nextBtn">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+    </div>
+    <div class="tabs-menu fixed opacity-30 hover:opacity-100 right-4 bottom-4 z-50" id="tabsMenu">
+        <div class="flex gap-2">
+            <a href="./index.html" target='_blank' class="tab-btn" id="uploaderTabBtn" data-tab="uploader" title="Upload Images">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </a>
+        </div>
+    </div>
+    <script>
+        // IndexedDB Helper (must match the structure in photo manager)
+        class GalleryDB {
+            constructor() {
+                this.dbName = 'photo_gallery_db';
+                this.storeName = 'photos';
+                this.db = null;
+            }
+            async open() {
+                if (this.db) return this.db;
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, 1);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            db.createObjectStore(this.storeName, { keyPath: 'id', autoIncrement: false });
+                        }
+                    };
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        resolve(this.db);
+                    };
+                    request.onerror = (event) => {
+                        reject('DB open error: ' + event.target.errorCode);
+                    };
+                });
+            }
+            async getAllPhotos() {
+                const db = await this.open();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction([this.storeName], 'readonly');
+                    const store = tx.objectStore(this.storeName);
+                    const request = store.getAll();
+                    request.onsuccess = (e) => resolve(request.result || []);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+        }
+        const galleryDB = new GalleryDB();
+
+        // Состояние слайдера
+        const state = {
+            photos: [],
+            currentIndex: 0,
+            slideInterval: null,
+            isPlaying: true,
+            slideSpeed: 5000,
+            isFullscreen: false
+        };
+        // DOM элементы
+        const dom = {
+            galleryContainer: document.getElementById('galleryContainer'),
+            slideContainer: document.getElementById('slideContainer'),
+            emptyGalleryPrompt: document.getElementById('emptyGalleryPrompt'),
+            prevBtn: document.getElementById('prevBtn'),
+            nextBtn: document.getElementById('nextBtn'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
+            speedControl: document.getElementById('speedControl')
+        };
+
+        // Загрузка фотографий из IndexedDB
+        async function loadPhotosFromDB() {
+            const photos = await galleryDB.getAllPhotos();
+            photos.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            state.photos = photos;
+            if (state.currentIndex >= state.photos.length) {
+                state.currentIndex = 0;
+            }
+            renderSlides();
+            if (state.photos.length === 0) {
+                dom.emptyGalleryPrompt.classList.remove('hidden');
+                stopSlideShow();
+                state.isPlaying = false;
+                dom.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+            } else {
+                dom.emptyGalleryPrompt.classList.add('hidden');
+                showSlide(state.currentIndex);
+                if (state.isPlaying && state.photos.length > 1) {
+                    startSlideShow();
+                } else {
+                    stopSlideShow();
+                    state.isPlaying = false;
+                    dom.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                }
+            }
+        }
+
+        function renderSlides() {
+            dom.slideContainer.innerHTML = '';
+            state.photos.forEach((photo, index) => {
+                const slide = document.createElement('div');
+                slide.className = `absolute inset-0 flex items-center justify-center ${index === state.currentIndex ? 'opacity-100' : 'opacity-0'} transition-opacity duration-500`;
+                slide.dataset.index = index;
+
+                // Determine portrait or landscape
+                let orientation = 'landscape';
+                if (photo.width && photo.height && photo.height > photo.width) {
+                    orientation = 'portrait';
+                }
+                const img = document.createElement('img');
+                img.src = photo.url;
+                img.className = `gallery-slide-img fade-in ${orientation}`;
+                img.alt = `Slide ${index + 1}`;
+                slide.appendChild(img);
+                dom.slideContainer.appendChild(slide);
+            });
+        }
+
+        function showSlide(index) {
+            if (state.photos.length === 0) return;
+            state.currentIndex = index;
+            const slides = document.querySelectorAll('#slideContainer > div');
+            slides.forEach(slide => {
+                slide.classList.remove('opacity-100');
+                slide.classList.add('opacity-0');
+            });
+            const newSlide = slides[index];
+            if (newSlide) {
+                newSlide.classList.remove('opacity-0');
+                newSlide.classList.add('opacity-100');
+            }
+        }
+
+        function nextSlide() {
+            if (state.photos.length === 0) return;
+            const newIndex = (state.currentIndex + 1) % state.photos.length;
+            showSlide(newIndex);
+        }
+        function prevSlide() {
+            if (state.photos.length === 0) return;
+            const newIndex = (state.currentIndex - 1 + state.photos.length) % state.photos.length;
+            showSlide(newIndex);
+        }
+        function startSlideShow() {
+            if (state.photos.length > 1 && state.isPlaying) {
+                clearInterval(state.slideInterval);
+                state.slideInterval = setInterval(() => {
+                    nextSlide();
+                }, state.slideSpeed);
+            }
+        }
+        function stopSlideShow() {
+            clearInterval(state.slideInterval);
+        }
+        function resetTimer() {
+            if (state.isPlaying && state.photos.length > 1) {
+                stopSlideShow();
+                startSlideShow();
+            }
+        }
+        function togglePlayPause() {
+            state.isPlaying = !state.isPlaying;
+            if (state.isPlaying) {
+                dom.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                startSlideShow();
+            } else {
+                dom.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                stopSlideShow();
+            }
+        }
+        function toggleFullscreen() {
+            if (!state.isFullscreen) {
+                enterFullscreen();
+            } else {
+                exitFullscreen();
+            }
+        }
+        function enterFullscreen() {
+            if (dom.galleryContainer.requestFullscreen) {
+                dom.galleryContainer.requestFullscreen();
+            }
+            state.isFullscreen = true;
+            dom.fullscreenBtn.classList.add('active');
+            dom.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+            if (!state.isPlaying) {
+                togglePlayPause();
+            }
+        }
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+            state.isFullscreen = false;
+            dom.fullscreenBtn.classList.remove('active');
+            dom.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+        }
+        function handleFullscreenChange() {
+            state.isFullscreen = !!document.fullscreenElement;
+            if (state.isFullscreen) {
+                dom.fullscreenBtn.classList.add('active');
+                dom.fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                if (!state.isPlaying) {
+                    togglePlayPause();
+                }
+            } else {
+                dom.fullscreenBtn.classList.remove('active');
+                dom.fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            }
+        }
+        function setupEventListeners() {
+            dom.prevBtn.addEventListener('click', () => {
+                prevSlide();
+                resetTimer();
+            });
+            dom.nextBtn.addEventListener('click', () => {
+                nextSlide();
+                resetTimer();
+            });
+            dom.playPauseBtn.addEventListener('click', togglePlayPause);
+            dom.fullscreenBtn.addEventListener('click', toggleFullscreen);
+            dom.speedControl.addEventListener('change', (e) => {
+                state.slideSpeed = parseInt(e.target.value);
+                if (state.isPlaying) {
+                    resetTimer();
+                }
+            });
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('keydown', (e) => {
+                if (state.photos.length === 0) return;
+                switch (e.key) {
+                    case 'ArrowRight':
+                        nextSlide();
+                        resetTimer();
+                        break;
+                    case 'ArrowLeft':
+                        prevSlide();
+                        resetTimer();
+                        break;
+                    case ' ':
+                        togglePlayPause();
+                        break;
+                    case 'f':
+                    case 'F':
+                        toggleFullscreen();
+                        break;
+                    case 'Escape':
+                        if (state.isFullscreen) exitFullscreen();
+                        break;
+                }
+            });
+        }
+        function watchIndexedDbChanges() {
+            let lastIds = [];
+            setInterval(async () => {
+                const photos = await galleryDB.getAllPhotos();
+                photos.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                const ids = photos.map(p => p.id);
+                if (JSON.stringify(ids) !== JSON.stringify(lastIds)) {
+                    lastIds = ids;
+                    state.photos = photos;
+                    if (state.currentIndex >= state.photos.length) {
+                        state.currentIndex = 0;
+                    }
+                    renderSlides();
+                    if (state.photos.length === 0) {
+                        dom.emptyGalleryPrompt.classList.remove('hidden');
+                        stopSlideShow();
+                        state.isPlaying = false;
+                        dom.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    } else {
+                        dom.emptyGalleryPrompt.classList.add('hidden');
+                        showSlide(state.currentIndex);
+                        if (state.isPlaying && state.photos.length > 1) {
+                            startSlideShow();
+                        } else {
+                            stopSlideShow();
+                            state.isPlaying = false;
+                            dom.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                        }
+                    }
+                }
+            }, 2000);
+        }
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadPhotosFromDB();
+            setupEventListeners();
+            watchIndexedDbChanges();
+        });
+    </script>
+</body>
+</html>
