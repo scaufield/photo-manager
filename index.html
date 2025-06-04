@@ -1,321 +1,183 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Photo Manager (IndexedDB)</title>
+    <title>Photo Manager (IndexedDB)</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🖼️</text></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            background-color: #f8fafc;
-            min-height: 100vh;
-        }
-        .dropzone {
-            position: relative;
-            background-image: repeating-linear-gradient(45deg, #f1f5f9 0px, #f1f5f9 10px, #f8fafc 10px, #f8fafc 20px);
-            border: 2px dashed #cbd5e1;
-            transition: all 0.3s ease;
-        }
-        .dropzone.active {
-            border-color: #3b82f6;
-            background-color: rgba(59, 130, 246, 0.05);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .fade-in {
-            animation: fadeIn 0.4s ease-in-out;
-        }
-        .top-right-loader {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            background: white;
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-            width: 380px;
-            max-height: 80vh;
-            overflow-y: auto;
-            transform: translateY(-30px);
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid #e2e8f0;
-        }
-        .top-right-loader.active {
-            transform: translateY(0);
-            opacity: 1;
-        }
+        body { background-color: #f8fafc; min-height: 100vh; }
+        .dropzone { position: relative; background-image: repeating-linear-gradient(45deg, #f1f5f9 0px, #f1f5f9 10px, #f8fafc 10px, #f8fafc 20px); border: 2px dashed #cbd5e1; transition: all 0.3s ease; }
+        .dropzone.active { border-color: #3b82f6; background-color: rgba(59, 130, 246, 0.05); }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .photo-card {
-            position: relative;
-            overflow: hidden;
-            border-radius: 12px;
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-            background: white;
-            transform-origin: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            cursor: move;
+            position: relative; overflow: hidden; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.3s ease; background: white;
+            transform-origin: center; box-shadow: 0 4px 12px rgba(0,0,0,0.03); cursor: move;
         }
-        .photo-card .delete-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            background: rgba(239, 68, 68, 0.9);
-            color: white;
-            border-radius: 50%;
-            width: 26px;
-            height: 26px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s;
-            z-index: 20;
-        }
-        .photo-card:hover .delete-btn {
-            opacity: 1;
-        }
-        .photo-card img {
-            height: 200px;
-            object-fit: cover;
-            background: linear-gradient(45deg, #f9fafb, #f1f5f9);
-            transition: transform 0.3s ease-in-out;
-            will-change: transform;
-        }
-        .photo-card:hover img {
-            transform: scale(1.03);
-        }
-        .photo-card.dragging {
-            opacity: 0.95;
-            transform: scale(1);
-            z-index: 999;
-            position: relative;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-            user-select: none;
-        }
-        .photo-card.drag-over {
-            border: 2px dashed #3b82f6;
-            background-color: rgba(59, 130, 246, 0.1);
-        }
-        .photo-card.dragging img {
-            transform: scale(1);
-        }
-        .empty-gallery {
-            grid-column: 1 / -1;
-            padding: 50px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-radius: 12px;
-            border: 1px dashed #cbd5e1;
-            text-align: center;
-        }
-        .empty-gallery i {
-            font-size: 52px;
-            color: #cbd5e1;
-            margin-bottom: 16px;
-        }
-        .empty-gallery h3 {
-            font-size: 22px;
-            color: #64748b;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-        .empty-gallery p {
-            color: #94a3b8;
-            max-width: 380px;
-            margin: 0 auto;
-        }
-        .progress-fill {
-            background: linear-gradient(90deg, #6366f1, #3b82f6, #60a5fa);
-        }
+        .photo-card .delete-btn { position: absolute; top: 8px; right: 8px; background: rgba(239, 68, 68, 0.9); color: white; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; z-index: 20; }
+        .photo-card:hover .delete-btn { opacity: 1; }
+        .photo-card img { height: 200px; object-fit: cover; background: linear-gradient(45deg, #f9fafb, #f1f5f9); transition: transform 0.3s; will-change: transform; }
+        .photo-card:hover img { transform: scale(1.03); }
+        .photo-card.dragging { opacity: 0.95; transform: scale(1); z-index: 999; box-shadow: 0 6px 20px rgba(0,0,0,0.1); user-select: none; }
+        .photo-card.drag-over { border: 2px dashed #3b82f6; background-color: rgba(59, 130, 246, 0.1); }
+        .photo-card.dragging img { transform: scale(1); }
+        .empty-gallery { grid-column: 1 / -1; padding: 50px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center; }
+        .empty-gallery i { font-size: 52px; color: #cbd5e1; margin-bottom: 16px; }
+        .empty-gallery h3 { font-size: 22px; color: #64748b; margin-bottom: 8px; font-weight: 600; }
+        .empty-gallery p { color: #94a3b8; max-width: 380px; margin: 0 auto; }
+        .db-stats-panel { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 16px; padding: 20px; min-width: 240px;  box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 10px; font-size: 14px; height: 100%; box-sizing: border-box; justify-content: center; }
+        .db-stats-panel .title { font-weight: bold; color: #334155; font-size: 15px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .db-stats-bar { height: 10px; background: #e0e7ef; border-radius: 8px; margin: 8px 0; width: 100%; position: relative; overflow: hidden; }
+        .db-stats-bar-used { background: linear-gradient(90deg, #6366f1, #3b82f6, #60a5fa); height: 100%; border-radius: 8px 0 0 8px; transition: width 0.4s; }
+        .db-stats-panel .stat-row { display: flex; justify-content: space-between; align-items: center; margin: 0 0 3px 0; }
+        .upload-area-panel { min-width: 0; flex: 1 1 0%; display: flex; flex-direction: column; justify-content: center; height: 100%; }
         @media (max-width: 1024px) {
-            .upload-and-db-flex {
-                flex-direction: column !important;
-                align-items: stretch !important;
-            }
-            .db-stats-panel {
-                margin-top: 16px;
-                width: 100%;
-            }
+            .upload-and-db-flex { flex-direction: column !important; align-items: stretch !important; }
+            .db-stats-panel { margin-top: 16px; width: 100%; }
         }
         @media (max-width: 768px) {
-            .top-right-loader {
-                width: calc(100% - 40px);
-                right: 20px;
-                left: 20px;
-            }
-            .db-stats-panel {
-                width: 100%;
-                margin-top: 8px;
-                margin-left: 0;
-            }
+            .db-stats-panel { width: 100%; margin-top: 8px; margin-left: 0; }
         }
-        .drag-image {
-            box-sizing: border-box;
-            border-radius: 12px;
-            background: white;
-        }
-        .db-stats-panel {
-            background: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 16px;
-            padding: 20px;
-            min-width: 240px;
-            max-width: 350px;
-            margin-left: 24px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            font-size: 14px;
-            height: 100%;
-            box-sizing: border-box;
-            justify-content: center;
-        }
-        .db-stats-panel .title {
-            font-weight: bold;
-            color: #334155;
-            font-size: 15px;
-            margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .db-stats-bar {
-            height: 10px;
-            background: #e0e7ef;
-            border-radius: 8px;
-            margin: 8px 0;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-        .db-stats-bar-used {
-            background: linear-gradient(90deg, #6366f1, #3b82f6, #60a5fa);
-            height: 100%;
-            border-radius: 8px 0 0 8px;
-            transition: width 0.4s;
-        }
-        .db-stats-panel .stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 0 0 3px 0;
-        }
-        .upload-area-panel {
-            min-width: 0;
-            flex: 1 1 0%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            height: 100%;
-        }
+        .modal-bg { background: rgba(30, 41, 59, 0.80); }
+      .photo-thumb {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid #d1d5db;
+    background: #f1f5f9;
+}
+.photo-thumb.error {
+    filter: grayscale(1) brightness(0.9);
+    opacity: 0.6;
+    border-color: #ef4444;
+    position: relative;
+}
+.thumb-err-overlay {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 2rem;
+    color: #ef4444;
+    background: rgba(255,255,255,0.6);
+}
+.thumb-delete-btn {
+    position: absolute;
+    top: 4px; right: 4px;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 50%;
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10; cursor: pointer; opacity: 0.85; border: none;
+}
+.thumb-delete-btn:hover { opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-50 font-sans">
-    <!-- Лоадер для загрузки файлов -->
-    <div id="topLoader" class="top-right-loader">
-        <div class="loader-header flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
-            <div class="loader-title text-xl font-bold text-blue-700 flex items-center gap-2">
-                <i class="fas fa-cloud-arrow-up animate-pulse"></i>
-                Uploading Photos
-            </div>
-            <button class="close-btn w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center">
-                &times;
-            </button>
+    <!-- Модальное окно для отчёта о загрузке -->
+<div id="uploadModal" class="fixed inset-0 flex items-center justify-center z-50 hidden modal-bg">
+    <div class="bg-white rounded-2xl shadow-lg p-10 max-w-2xl w-full relative flex flex-col items-center" style="min-width:340px;">
+        <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-red-600 text-2xl font-bold">&times;</button>
+        <div class="text-center mb-3">
+            <div id="modalErrorIcon" class="text-3xl text-red-600 mb-2 hidden"><i class="fas fa-exclamation-triangle"></i></div>
+            <h2 class="text-xl font-bold text-gray-700 mb-2">Результат загрузки</h2>
+            <p class="text-gray-500 mb-4" id="modalMessage">
+                Загружено фото: <span id="modalSuccessCount"></span><br>
+                Ошибок: <span id="modalErrorCount"></span>
+            </p>
         </div>
-        <div class="overall-progress text-center mb-5">
-            <span id="progressText" class="font-medium text-indigo-800">Processing files...</span>
+        <div class="flex flex-wrap gap-4 mb-8 max-h-[440px] overflow-y-auto justify-center w-full" id="modalThumbnails">
+            <!-- Миниатюры -->
         </div>
-        <div class="file-list overflow-y-auto max-h-[300px] space-y-3" id="fileList"></div>
-        <div class="cancel-btn mt-6">
-            <button id="cancelAllBtn" class="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors duration-200">
-                Cancel Upload
-            </button>
+        <div class="flex gap-3 w-full justify-center">
+            <button id="modalCancelBtn" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg font-semibold text-lg focus:outline-none transition">Отмена</button>
+            <button id="modalOkayBtn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-lg focus:outline-none transition">Добавить</button>
+        </div>
+         <div id="modalLimitMessage" class="text-center w-full">
+            <span class="text-sm text-red-500" style="display: none;">Можно загрузить не более 20 фото за раз</span>
         </div>
     </div>
+</div>
     <main class="container mx-auto py-6 px-4 max-w-6xl">
-        <!-- FLEX CONTAINER: upload + db info -->
-        <div class="upload-and-db-flex flex flex-row items-center justify-between mb-8 gap-4" style="width:100%;">
-            <div class="upload-area-panel">
-                <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
-                    <h1 class="text-3xl lg:text-4xl font-black text-slate-800 flex items-center gap-3">
-                        <i class="fas fa-images text-indigo-600"></i>
-                        Photo Manager
-                    </h1>
-                    <div class="flex gap-3">
-                        <button id="clearAllBtn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium flex items-center disabled:opacity-50 disabled:cursor-not-allowed" 
-                                disabled>
-                            <i class="fas fa-trash-can mr-2"></i> Clear All
-                        </button>
-                        <a href="gallery.html" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors">
-                            <i class="fas fa-play"></i> Start Slideshow
-                        </a>
-                    </div>
+        <!-- ХЕДЕР НА 100% ширины -->
+        <div class="w-full bg-white shadow-sm px-4 mb-8 rounded-lg">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 max-w-6xl mx-auto py-6">
+                <h1 class="text-2xl lg:text-3xl font-black text-slate-800 flex items-center gap-3">
+                    <i class="fas fa-images text-indigo-600"></i>
+                    Photo Manager
+                </h1>
+                <div class="flex gap-3">
+                    <button id="clearAllBtn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium flex items-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <i class="fas fa-trash-can mr-2"></i> Очистить всё
+                    </button>
+                    <a href="gallery.html" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium flex items-center gap-2 transition-colors">
+                        <i class="fas fa-play"></i> Слайд-шоу
+                    </a>
                 </div>
-                <!-- Область загрузки -->
+            </div>
+        </div>
+        <!-- FLEX: загрузка + инфо о базе вместе -->
+        <div class="flex flex-col md:flex-row gap-6 w-full justify-between items-stretch mb-8">
+            <div class="upload-area-panel flex-1">
                 <div class="bg-white rounded-2xl shadow-sm mb-0 dropzone overflow-hidden" id="uploadArea">
                     <div class="py-12 px-4 text-center" id="uploadPrompt">
                         <div class="mx-auto w-24 h-24 rounded-full bg-indigo-50 flex items-center justify-center mb-6">
                             <i class="fas fa-cloud-arrow-up text-5xl text-indigo-500"></i>
                         </div>
                         <div class="max-w-md mx-auto">
-                            <p class="text-xl md:text-2xl text-slate-700 mb-2 font-semibold">Upload your images</p>
-                            <p class="text-md text-slate-500 mb-6">Drag & drop photos here or browse files</p>
+                            <p class="text-xl md:text-2xl text-slate-700 mb-2 font-semibold">Загрузите ваши изображения</p>
+                            <p class="text-md text-slate-500 mb-6">Перетащите фото сюда или выберите файлы</p>
                         </div>
                         <input type="file" id="fileInput" class="hidden" accept="image/jpeg, image/png, image/webp" multiple>
                         <button id="selectFilesBtn" class="py-3 px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-full font-medium transition-all">
-                            Select Photos
+                            Выбрать фото
                         </button>
                         <p class="text-sm text-slate-400 mt-6">
-                            Supported: JPG, PNG, WebP (Max size: 5MB)
+                            Поддерживаются: JPG, PNG, WebP (макс. 5 МБ)
                         </p>
                     </div>
                 </div>
             </div>
-            <!-- Панель статистики IndexedDB -->
-            <div class="db-stats-panel mt-6" id="dbStatsPanel">
-                <div class="title"><i class="fas fa-database"></i> IndexedDB storage</div>
-                <div class="db-stats-bar">
-                    <div class="db-stats-bar-used" id="dbStatsBarUsed" style="width:0%"></div>
-                </div>
-                <div class="stat-row">
-                    <span>Used:</span>
-                    <span id="dbStatsUsed">0 KB</span>
-                </div>
-                <div class="stat-row">
-                    <span>Total:</span>
-                    <span id="dbStatsTotal">~50,000 KB</span>
-                </div>
-                <div class="stat-row">
-                    <span>Free:</span>
-                    <span id="dbStatsFree">~50,000 KB</span>
-                </div>
-                <div class="stat-row">
-                    <span>Images:</span>
-                    <span id="dbStatsCount">0</span>
-                </div>
-                <div class="text-xs text-slate-400 mt-2">* Actual limits зависят от браузера</div>
-            </div>
+           <div class="db-stats-panel mt-6 md:mt-0 md:w-80 w-full" id="dbStatsPanel">
+    <div class="title"><i class="fas fa-database"></i> Хранилище IndexedDB</div>
+    <div class="db-stats-bar">
+        <div class="db-stats-bar-used" id="dbStatsBarUsed" style="width:0%"></div>
+    </div>
+    <div class="stat-row">
+        <span>Использовано:</span>
+        <span id="dbStatsUsed">0 КБ / 0.0 МБ</span>
+    </div>
+    <div class="stat-row">
+        <span>Всего:</span>
+        <span id="dbStatsTotal">~50,000 КБ / ~50.0 МБ</span>
+    </div>
+    <div class="stat-row">
+        <span>Свободно:</span>
+        <span id="dbStatsFree">~50,000 КБ / ~50.0 МБ</span>
+    </div>
+    <div class="stat-row">
+        <span>Фотографий:</span>
+        <span id="dbStatsCount">0</span>
+    </div>
+    <div class="text-xs text-slate-400 mt-2">* Фактические лимиты зависят от браузера</div>
+</div>
         </div>
-        <!-- Галерея фото -->
         <div class="bg-white rounded-2xl shadow-sm overflow-hidden pb-4">
             <div class="p-5 border-b border-slate-100 flex justify-between items-center flex-wrap gap-4">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                     <i class="fas fa-layer-group text-indigo-600"></i>
-                    Gallery
+                    Галерея
                 </h2>
                 <div class="flex items-center gap-3">
                     <span id="photoCounter" class="text-slate-500">
-                        0 photos
+                        0 фото
                     </span>
                     <div class="relative">
                         <button id="settingsBtn" class="p-2 rounded-lg hover:bg-slate-100">
@@ -325,15 +187,14 @@
                 </div>
             </div>
             <div class="p-4">
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" id="photosGrid">
-                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" id="photosGrid"></div>
                 <div id="emptyGallery" class="empty-gallery">
                     <div class="relative w-28 h-28 flex items-center justify-center">
                         <i class="fas fa-image absolute"></i>
                         <i class="fas fa-file-arrow-up absolute text-4xl text-indigo-200"></i>
                     </div>
-                    <h3>Your gallery is empty</h3>
-                    <p>Drop some images above or click "Select Photos" to start building your collection</p>
+                    <h3>Ваша галерея пуста</h3>
+                    <p>Перетащите изображения выше или нажмите «Выбрать фото», чтобы начать собирать коллекцию</p>
                 </div>
             </div>
         </div>
@@ -361,7 +222,7 @@
                         resolve(this.db);
                     };
                     request.onerror = (event) => {
-                        reject('DB open error: ' + event.target.errorCode);
+                        reject('Ошибка открытия БД: ' + event.target.errorCode);
                     };
                 });
             }
@@ -419,7 +280,7 @@
                 const photos = await this.getAllPhotos();
                 let total = 0;
                 for (const photo of photos) {
-                    total += JSON.stringify(photo).length * 2 / 1024; // KB approx
+                    total += JSON.stringify(photo).length * 2 / 1024;
                 }
                 return total;
             }
@@ -439,14 +300,11 @@
         // --- State and DOM refs ---
         const state = {
             photos: [],
-            currentUpload: {
-                files: [],
-                readers: {},
-                fileItems: {}
-            },
+            modalResults: [],
             draggedItem: null,
-            originalStyles: {}
+            draggedIndex: null
         };
+
         const dom = {
             uploadArea: document.getElementById('uploadArea'),
             uploadPrompt: document.getElementById('uploadPrompt'),
@@ -455,33 +313,33 @@
             photosGrid: document.getElementById('photosGrid'),
             clearAllBtn: document.getElementById('clearAllBtn'),
             photoCounter: document.getElementById('photoCounter'),
-            topLoader: document.getElementById('topLoader'),
-            fileList: document.getElementById('fileList'),
-            progressText: document.getElementById('progressText'),
-            cancelAllBtn: document.getElementById('cancelAllBtn'),
-            loaderClose: document.querySelector('.close-btn'),
             emptyGallery: document.getElementById('emptyGallery'),
             dbStatsPanel: document.getElementById('dbStatsPanel'),
             dbStatsUsed: document.getElementById('dbStatsUsed'),
             dbStatsTotal: document.getElementById('dbStatsTotal'),
             dbStatsFree: document.getElementById('dbStatsFree'),
             dbStatsCount: document.getElementById('dbStatsCount'),
-            dbStatsBarUsed: document.getElementById('dbStatsBarUsed')
+            dbStatsBarUsed: document.getElementById('dbStatsBarUsed'),
+            uploadModal: document.getElementById('uploadModal'),
+            modalThumbnails: document.getElementById('modalThumbnails'),
+            modalOkayBtn: document.getElementById('modalOkayBtn'),
+            modalCancelBtn: document.getElementById('modalCancelBtn'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            modalSuccessCount: document.getElementById('modalSuccessCount'),
+            modalErrorCount: document.getElementById('modalErrorCount'),
+            modalErrorIcon: document.getElementById('modalErrorIcon'),
+            modalMessage: document.getElementById('modalMessage')
         };
 
-        // Условный лимит (для визуализации): 50 МБ = 51200 КБ
-        const DB_TOTAL_LIMIT_KB = 51200;
+        async function getStorageEstimate() {
+            if (navigator.storage && navigator.storage.estimate) {
+                const estimate = await navigator.storage.estimate();
+                return { quota: estimate.quota || 51200 * 1024, usage: estimate.usage || 0 };
+            } else {
+                return { quota: 51200 * 1024, usage: 0 };
+            }
+        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            loadPhotosFromDB().catch(e => {
-                console.error('DB error:', e);
-                showStorageAlert();
-            });
-            setupEventListeners();
-            updateDbStatsPanel();
-        });
-
-        // --- CRUD with IndexedDB ---
         async function loadPhotosFromDB() {
             const photos = await galleryDB.getAllPhotos();
             photos.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -497,15 +355,10 @@
             updateDbStatsPanel();
             return photoId;
         }
-        async function updatePhotoDB(photo) {
-            await galleryDB.updatePhoto(photo);
-        }
-        async function deletePhotoFromDB(id) {
-            await galleryDB.deletePhoto(id);
-            updateDbStatsPanel();
-        }
+        async function updatePhotoDB(photo) { await galleryDB.updatePhoto(photo); }
+        async function deletePhotoFromDB(id) { await galleryDB.deletePhoto(id); updateDbStatsPanel(); }
         async function clearAllPhotos() {
-            if (state.photos.length > 0 && confirm('Delete all photos permanently?')) {
+            if (state.photos.length > 0 && confirm('Удалить все фото безвозвратно?')) {
                 await galleryDB.clearAll();
                 state.photos = [];
                 renderPhotos();
@@ -518,26 +371,33 @@
         }
         async function showStorageAlert() {
             const usedSpace = await getUsedStorageSpace();
-            alert(`⚠️ Storage is almost full!\nYou've used ${usedSpace}KB of available space.\nPlease delete some photos to free up space.`);
+            alert(`⚠️ Место для хранения почти закончилось!\nИспользовано ${usedSpace} КБ доступного пространства.\nПожалуйста, удалите часть фотографий, чтобы освободить место.`);
         }
-        async function updateDbStatsPanel() {
-            // Получить размер и количество
-            const used = await galleryDB.getUsedStorageSpace();
-            const count = await galleryDB.getPhotoCount();
-            const total = DB_TOTAL_LIMIT_KB;
-            const free = Math.max(0, total - used);
-            dom.dbStatsUsed.textContent = `${Math.round(used)} KB`;
-            dom.dbStatsTotal.textContent = `~${total.toLocaleString('en-US')} KB`;
-            dom.dbStatsFree.textContent = `~${Math.round(free).toLocaleString('en-US')} KB`;
-            dom.dbStatsCount.textContent = count;
-            const percent = Math.min(100, used / total * 100);
-            dom.dbStatsBarUsed.style.width = percent + "%";
-            dom.dbStatsBarUsed.style.background = percent < 80
-                ? 'linear-gradient(90deg, #6366f1, #3b82f6, #60a5fa)'
-                : 'linear-gradient(90deg, #fb7185, #fbbf24)';
-        }
+async function updateDbStatsPanel() {
+    const used = await galleryDB.getUsedStorageSpace();
+    const count = await galleryDB.getPhotoCount();
+    const estimate = await getStorageEstimate();
+    const total = estimate.quota / 1024;
+    const usedDB = used;
+    const usedAll = estimate.usage / 1024;
+    const free = Math.max(0, total - usedAll);
 
-        // --- UI rendering and logic ---
+    // Форматирование в КБ и МБ
+    function formatKbMb(valKb) {
+        const mb = valKb / 1024;
+        // Русские КБ/МБ, через пробелы
+        return `${Math.round(valKb).toLocaleString('ru-RU')} КБ / ${mb.toFixed(1).replace('.', ',')} МБ`;
+    }
+    dom.dbStatsUsed.textContent = formatKbMb(usedDB);
+    dom.dbStatsTotal.textContent = `~${Math.round(total).toLocaleString('ru-RU')} КБ / ~${(total/1024).toFixed(1).replace('.', ',')} МБ`;
+    dom.dbStatsFree.textContent = `~${Math.round(free).toLocaleString('ru-RU')} КБ / ~${(free/1024).toFixed(1).replace('.', ',')} МБ`;
+    dom.dbStatsCount.textContent = count;
+    const percent = Math.min(100, usedAll / total * 100);
+    dom.dbStatsBarUsed.style.width = percent + "%";
+    dom.dbStatsBarUsed.style.background = percent < 80
+        ? 'linear-gradient(90deg, #6366f1, #3b82f6, #60a5fa)'
+        : 'linear-gradient(90deg, #fb7185, #fbbf24)';
+}
         function renderPhotos() {
             dom.photosGrid.innerHTML = '';
             if (state.photos.length === 0) {
@@ -551,27 +411,21 @@
         }
         function updateCounter() {
             const count = state.photos.length;
-            dom.photoCounter.textContent = `${count} photo${count !== 1 ? 's' : ''}`;
+            dom.photoCounter.textContent = `${count} фото`;
             dom.clearAllBtn.disabled = count === 0;
         }
+
         function createPhotoCard(photo, index) {
             const photoCard = document.createElement('div');
             photoCard.className = 'photo-card';
             photoCard.dataset.id = photo.id;
             photoCard.dataset.index = index;
-            const cardStyle = {};
-            const computedStyle = window.getComputedStyle(photoCard);
-            for (let i = 0; i < computedStyle.length; i++) {
-                const prop = computedStyle[i];
-                cardStyle[prop] = computedStyle.getPropertyValue(prop);
-            }
-            state.originalStyles[photoCard.id] = cardStyle;
             photoCard.innerHTML = `
                 <img src="${photo.url}" alt="${photo.name}" class="w-full" loading="lazy">
                 <div class="p-3">
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-medium text-gray-500 truncate">${photo.name}</span>
-                        <span class="text-xs text-gray-400">${Math.round(photo.size/1024)}KB</span>
+                        <span class="text-xs text-gray-400">${Math.round(photo.size/1024)}КБ</span>
                     </div>
                 </div>
                 <button class="delete-btn">
@@ -579,47 +433,28 @@
                 </button>
             `;
             photoCard.draggable = true;
+
+            // DND logic
             photoCard.addEventListener('dragstart', function(e) {
                 state.draggedItem = this;
                 state.draggedIndex = index;
                 setTimeout(() => this.classList.add('dragging'), 0);
+                // custom drag image
                 const dragImg = document.createElement('img');
                 dragImg.className = 'drag-image';
                 dragImg.src = photo.url;
-                dragImg.style.width = '250px';
-                dragImg.style.height = '150px';
-                const dragWrapper = document.createElement('div');
-                dragWrapper.className = 'drag-wrapper';
-                dragWrapper.appendChild(dragImg);
-                e.dataTransfer.setDragImage(dragWrapper, 250, 150);
-                e.dataTransfer.effectAllowed = 'move';
+                dragImg.style.width = '160px';
+                dragImg.style.height = '96px';
+                document.body.appendChild(dragImg);
+                e.dataTransfer.setDragImage(dragImg, 80, 48);
+                setTimeout(() => dragImg.remove(), 0);
             });
             photoCard.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 this.classList.add('drag-over');
-                document.querySelectorAll('.photo-card:not(.dragging).not-dragover').forEach(card => {
-                    Object.entries(state.originalStyles[card.id] || {}).forEach(([prop, value]) => {
-                        card.style[prop] = value;
-                    });
-                });
             });
-            photoCard.addEventListener('dragenter', function(e) {
-                e.preventDefault();
-                this.style.cssText = `
-                    opacity: 0.95 !important;
-                    transform: scale(1) !important;
-                    z-index: 999 !important;
-                    box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
-                `;
-            });
-            photoCard.addEventListener('dragleave', function() {
+            photoCard.addEventListener('dragleave', function(e) {
                 this.classList.remove('drag-over');
-                document.querySelectorAll('.photo-card').forEach(card => {
-                    const cardStyle = state.originalStyles[card.id];
-                    for (let prop in cardStyle) {
-                        card.style[prop] = cardStyle[prop];
-                    }
-                });
             });
             photoCard.addEventListener('drop', async function(e) {
                 e.preventDefault();
@@ -627,7 +462,7 @@
                 if (state.draggedItem !== this) {
                     const draggedIndex = state.draggedIndex;
                     const targetIndex = parseInt(this.dataset.index);
-                    if (state.draggedItem && draggedIndex !== targetIndex) {
+                    if (typeof draggedIndex === 'number' && draggedIndex !== targetIndex) {
                         const movedPhoto = state.photos[draggedIndex];
                         state.photos.splice(draggedIndex, 1);
                         state.photos.splice(targetIndex, 0, movedPhoto);
@@ -638,15 +473,10 @@
             });
             photoCard.addEventListener('dragend', function() {
                 this.classList.remove('dragging');
-                document.querySelectorAll('.photo-card').forEach(el => {
-                    el.classList.remove('drag-over');
-                    const cardStyle = state.originalStyles[el.id];
-                    for (let prop in cardStyle) {
-                        el.style[prop] = cardStyle[prop];
-                    }
-                });
                 state.draggedItem = null;
+                state.draggedIndex = null;
             });
+
             photoCard.querySelector('.delete-btn').addEventListener('click', async (e) => {
                 e.stopPropagation();
                 await deletePhoto(index, photo.id);
@@ -660,37 +490,6 @@
             }
             updateDbStatsPanel();
         }
-        function compressImage(dataURL, maxSize = 800, quality = 0.7) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.src = dataURL;
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    let width = img.width;
-                    let height = img.height;
-                    if (width > maxSize || height > maxSize) {
-                        const ratio = Math.min(maxSize / width, maxSize / height);
-                        width = width * ratio;
-                        height = height * ratio;
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.drawImage(img, 0, 0, width, height);
-                    const format = dataURL.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
-                    try {
-                        resolve({
-                            dataUrl: canvas.toDataURL(format, quality),
-                            width,
-                            height
-                        });
-                    } catch (e) {
-                        resolve({dataUrl: dataURL, width: img.width, height: img.height});
-                    }
-                };
-                img.onerror = reject;
-            });
-        }
         async function deletePhoto(index, id) {
             state.photos.splice(index, 1);
             await deletePhotoFromDB(id);
@@ -698,131 +497,139 @@
             updateCounter();
             updateDbStatsPanel();
         }
-        // --- Loader and events ---
-        function createFileStatusItem(file, index) {
-            const extension = file.name.split('.').pop().toLowerCase();
-            const icons = {
-                jpg: 'fas fa-file-image text-yellow-500',
-                jpeg: 'fas fa-file-image text-yellow-500',
-                png: 'fas fa-file-image text-blue-500',
-                webp: 'fas fa-file-image text-purple-500',
-            };
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item bg-slate-50 rounded-xl p-4 flex items-start gap-3';
-            fileItem.id = `file-${index}`;
-            fileItem.innerHTML = `
-                <div class="file-icon mt-1 text-lg ${icons[extension] || 'fas fa-file text-slate-400'}"></div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex justify-between">
-                        <div class="file-name text-base text-slate-800 font-medium truncate">${file.name}</div>
-                        <button class="remove-file px-2 text-slate-400 hover:text-red-500" data-index="${index}">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="file-status mt-1 text-sm text-slate-500" id="status-${index}">Waiting to process</div>
-                    <div class="progress-container mt-2 bg-slate-200 rounded-full h-2">
-                        <div class="progress-fill h-full rounded-full" id="progress-${index}" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="status-indicator ml-2" id="indicator-${index}">
-                    <div class="status-loading w-[18px] h-[18px] border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                </div>
-            `;
-            return fileItem;
-        }
-        function updateFileStatus(index, status, progress = 0) {
-            const statusElement = document.getElementById(`status-${index}`);
-            const progressElement = document.getElementById(`progress-${index}`);
-            const indicator = document.getElementById(`indicator-${index}`);
-            if (statusElement) statusElement.textContent = status;
-            if (progressElement) progressElement.style.width = `${progress}%`;
-            if (status === 'Completed') {
-                indicator.innerHTML = '<div class="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-xs text-white"><i class="fas fa-check"></i></div>';
-            } else if (status.includes('Error') || status.includes('Failed')) {
-                indicator.innerHTML = '<div class="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-xs text-white"><i class="fas fa-exclamation"></i></div>';
-            }
-        }
-     async function processFile(file, index) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        state.currentUpload.readers[index] = reader;
-        reader.onload = (e) => {
-            const imageDataUrl = e.target.result;
-            const img = new Image();
-            img.onload = function() {
-                resolve({
-                    url: imageDataUrl,
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    width: img.width,
-                    height: img.height,
-                    date: new Date().toISOString(),
-                    order: state.photos.length
-                });
-            };
-            img.onerror = function() {
-                reject('Failed to load image');
-            };
-            img.src = imageDataUrl;
+
+        // --- MODAL UPLOAD LOGIC ---
+function showUploadModal(results, totalLimit) {
+    dom.modalThumbnails.innerHTML = '';
+    let success = 0, fail = 0;
+    state.modalResults = results.filter(item => item.success);
+    results.forEach((item, idx) => {
+        if (!item.success) { fail++; return; }
+        success++;
+        const wrap = document.createElement('div');
+        wrap.style.position = 'relative';
+        wrap.style.display = 'inline-block';
+        wrap.style.marginBottom = "10px";
+        const img = document.createElement('img');
+        img.src = item.dataUrl;
+        img.alt = item.file.name;
+        img.className = 'photo-thumb';
+        wrap.appendChild(img);
+        // delete button for this photo
+        const delBtn = document.createElement('button');
+        delBtn.className = 'thumb-delete-btn';
+        delBtn.title = "Удалить фото";
+        delBtn.innerHTML = '<i class="fas fa-times"></i>';
+        delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await deletePhotoById(item.photoId);
+            wrap.remove();
+            state.modalResults = state.modalResults.filter(x => x.photoId !== item.photoId);
+            await loadPhotosFromDB();
         };
-        reader.onerror = () => reject('File reading error');
-        reader.onabort = () => reject('Upload cancelled');
-        reader.readAsDataURL(file);
+        wrap.appendChild(delBtn);
+        dom.modalThumbnails.appendChild(wrap);
     });
+    dom.modalSuccessCount.textContent = success;
+    dom.modalErrorCount.textContent = fail;
+    dom.modalErrorIcon.classList.toggle('hidden', fail === 0);
+    dom.modalMessage.innerHTML = `
+        Загружено фото: <b>${success}</b><br>
+        Ошибок: <b>${fail}</b>
+    `;
+    // --- Добавлено: надпись максимум 20 фото под кнопками ---
+    const limitMsg = document.getElementById('modalLimitMessage');
+    if (totalLimit) {
+        limitMsg.querySelector('span').style.display = '';
+    } else {
+        limitMsg.querySelector('span').style.display = 'none';
+    }
+    dom.uploadModal.classList.remove('hidden');
 }
+        async function deletePhotoById(photoId) {
+            const idx = state.photos.findIndex(p => p.id === photoId);
+            if (idx !== -1) { state.photos.splice(idx, 1); }
+            await deletePhotoFromDB(photoId);
+        }
+
+        function hideUploadModal() {
+            dom.uploadModal.classList.add('hidden');
+            dom.modalThumbnails.innerHTML = '';
+            state.modalResults = [];
+        }
+        dom.modalOkayBtn.addEventListener('click', hideUploadModal);
+        dom.closeModalBtn.addEventListener('click', hideUploadModal);
+
+        dom.modalCancelBtn.addEventListener('click', async () => {
+            if (state.modalResults.length > 0 && confirm('Удалить все загруженные фото этой сессии?')) {
+                for (const item of state.modalResults) {
+                    await deletePhotoById(item.photoId);
+                }
+                await loadPhotosFromDB();
+            }
+            hideUploadModal();
+        });
+
+        async function processFileForModal(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    let img = new Image();
+                    img.onload = async function() {
+                        let obj = {
+                            url: e.target.result,
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            width: img.width,
+                            height: img.height,
+                            date: new Date().toISOString(),
+                            order: state.photos.length
+                        };
+                        try {
+                            const photoId = await savePhotoToDB(obj);
+                            if (photoId) {
+                                state.photos.push({...obj, id: photoId});
+                                resolve({success: true, file, dataUrl: e.target.result, photoId});
+                                return;
+                            }
+                        } catch (err) {}
+                        resolve({success: false, file, dataUrl: e.target.result, photoId: null});
+                    };
+                    img.onerror = function() {
+                        resolve({success: false, file, dataUrl: e.target.result, photoId: null});
+                    };
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => resolve({success: false, file, dataUrl: '', photoId: null});
+                reader.readAsDataURL(file);
+            });
+        }
+
         async function addPhotos(files) {
-            const validFiles = Array.from(files).filter(file => 
+            let limited = false;
+            let list = Array.from(files);
+            if (list.length > 20) {
+                list = list.slice(0, 20);
+                limited = true;
+            }
+            const validFiles = list.filter(file =>
                 file.type.match(/image\/(jpeg|png|webp)/) && file.size < 5 * 1024 * 1024
             );
             if (validFiles.length === 0) {
-                return alert('No valid images found. Supported formats: JPG, PNG, WebP (max 5MB)');
+                alert('Не найдено подходящих изображений. Поддерживаются форматы: JPG, PNG, WebP (макс. 5 МБ)');
+                return;
             }
-            dom.topLoader.classList.add('active');
-            dom.fileList.innerHTML = '';
-            validFiles.forEach((file, index) => {
-                state.currentUpload.fileItems[index] = createFileStatusItem(file, index);
-                dom.fileList.appendChild(state.currentUpload.fileItems[index]);
-                updateFileStatus(index, 'Waiting to upload', 0);
-            });
-            document.querySelectorAll('.remove-file').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const idx = parseInt(btn.dataset.index);
-                    const item = document.getElementById(`file-${idx}`);
-                    if (item) item.style.opacity = '0.3';
-                    if (state.currentUpload.readers[idx]) {
-                        state.currentUpload.readers[idx].abort();
-                    }
-                    updateFileStatus(idx, 'Removed', 0);
-                    setTimeout(() => {
-                        if (item) item.remove();
-                    }, 300);
-                });
-            });
-            const uploadPromises = validFiles.map((file, index) => 
-                processFile(file, index)
-                    .then(async photo => {
-                        const photoId = await savePhotoToDB(photo);
-                        if (photoId) {
-                            state.photos.push({...photo, id: photoId});
-                            updateFileStatus(index, 'Completed', 100);
-                        }
-                        return photo;
-                    })
-                    .catch(error => {
-                        console.error('Upload error:', error);
-                        updateFileStatus(index, error, 0);
-                        return null;
-                    })
-            );
-            await Promise.all(uploadPromises);
+            const results = [];
+            for (const file of validFiles) {
+                results.push(await processFileForModal(file));
+            }
             renderPhotos();
             updateCounter();
             updateDbStatsPanel();
-            setTimeout(() => {
-                dom.topLoader.classList.remove('active');
-            }, 2000);
+            showUploadModal(results, limited);
         }
+
         function setupEventListeners() {
             dom.selectFilesBtn.addEventListener('click', () => dom.fileInput.click());
             dom.fileInput.addEventListener('input', (e) => {
@@ -846,19 +653,16 @@
                 }
             });
             dom.clearAllBtn.addEventListener('click', clearAllPhotos);
-            dom.cancelAllBtn.addEventListener('click', () => {
-                dom.topLoader.classList.remove('active');
-                Object.values(state.currentUpload.readers).forEach(reader => {
-                    if (reader && typeof reader.abort === 'function') {
-                        reader.abort();
-                    }
-                });
-                state.currentUpload = { files: [], readers: {}, fileItems: {} };
-            });
-            dom.loaderClose.addEventListener('click', () => {
-                dom.topLoader.classList.remove('active');
-            });
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPhotosFromDB().catch(e => {
+                console.error('Ошибка БД:', e);
+                showStorageAlert();
+            });
+            setupEventListeners();
+            updateDbStatsPanel();
+        });
     </script>
 </body>
 </html>
